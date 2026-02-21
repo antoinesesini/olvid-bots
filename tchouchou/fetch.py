@@ -11,10 +11,10 @@ import argparse
 load_dotenv()
 
 
-with open("line_mapping.json", "r", encoding="utf-8") as f:
+with open("data/line_mapping.json", "r", encoding="utf-8") as f:
     lines = json.load(f)
 
-with open("stop_mapping.json", "r", encoding="utf-8") as f:
+with open("data/stop_mapping.json", "r", encoding="utf-8") as f:
     stops = json.load(f)
 
 def get_next_trains(monitoring_ref, line_id, api_url, api_key):
