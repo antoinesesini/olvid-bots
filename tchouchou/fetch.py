@@ -113,57 +113,45 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Display the next trains for a given line and stop."
     )
-
     parser.add_argument(
         "--line",
         required=True,
         help="Line letter (ex: N, A, B, C)"
     )
-
     parser.add_argument(
         "--stop",
         required=True,
         help="Stop name (ex: 'Brancion - Morillons')"
     )
-
     args = parser.parse_args()
-
     stop_input = args.stop
     line_letter = args.line.upper()
 
-    # Vérification ligne
+
     if line_letter not in lines:
         raise ValueError(f"Unknown line: {line_letter}")
-
     if stop_input not in stops:
         suggestions = suggest_stops(stop_input, stops)
-
         if not suggestions:
             raise ValueError(f"No stop found close to '{stop_input}'")
-
         print(f"Stop '{stop_input}' not found. Did you mean:\n")
-
         for i, stop in enumerate(suggestions, start=1):
             print(f"{i}. {stop}")
-
         choice = input("\nChoose a stop number (or press Enter to cancel): ").strip()
-
         if not choice.isdigit() or not (1 <= int(choice) <= len(suggestions)):
             print("Cancelled.")
             exit(1)
-
         stop_name = suggestions[int(choice) - 1]
     else:
         stop_name = stop_input
 
     MONITORING_REF = f"STIF:StopArea:SP:{stops[stop_name]}:"
     LINE_ID = f"STIF:Line::{lines[line_letter]}:"
-
     API_URL = os.getenv("API_URL")
     API_KEY = os.getenv("API_KEY")
 
     print(f"\nUsing stop: {stop_name}")
-    print(f"Monitoring ref: {MONITORING_REF}")
+    print(f"Stop ref: {MONITORING_REF}")
     print(f"Line ref: {LINE_ID}\n")
 
     next_trains = get_next_trains(
