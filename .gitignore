@@ -1,5 +1,5 @@
 .idea
 .env
 .DS_Store
-docker-compose.yml
 data
+tchouchou/env
