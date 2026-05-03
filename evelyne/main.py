@@ -86,6 +86,52 @@ class Evelyne(OlvidClient):
                 except ValueError:
                     print(f"Invalid time format for discussion {discussion.id}: {scheduled_time}")
 
+    def format_forecast(self, forecast, tz):
+        today_summary = forecast.get("today_summary", {})
+        temp_min = today_summary.get("temp_min", "?")
+        temp_max = today_summary.get("temp_max", "?")
+        weather_desc = today_summary.get("weather_description", "")
+        emoji_today = WEATHER_EMOJIS.get(weather_desc, "🌡")
+
+        response = f"🌤 Hello! Here is your weather forecast 🌤\n\n"
+
+        # Résumé du jour
+        response += f"📋 Today's summary: {emoji_today} {weather_desc}, {temp_min}°C / {temp_max}°C\n\n"
+
+        # Détails matin / midi / soir
+        SLOT_LABELS = {"08:00": "🌅 Morning (8h)", "14:00": "☀️ Afternoon (14h)", "20:00": "🌆 Evening (20h)"}
+        slots = {label: None for label in SLOT_LABELS}
+
+        for i, time_str in enumerate(forecast["hourly"]["time"]):
+            dt = datetime.fromisoformat(time_str)
+            hour = dt.strftime("%H:%M")
+            if hour in SLOT_LABELS:
+                temp = forecast["hourly"]["temperature_2m"][i]
+                weather = forecast["hourly"]["weather_description"][i]
+                emoji = WEATHER_EMOJIS.get(weather, "🌡")
+                slots[hour] = f"{emoji} {temp}°C, {weather}"
+
+        response += "🕒 Details:\n"
+        for hour_key, label in SLOT_LABELS.items():
+            value = slots.get(hour_key) or "N/A"
+            response += f"  {label}: {value}\n"
+
+        # Jours suivants
+        response += "\n📅 Next days:\n"
+        today = datetime.now(tz).date()
+        for i, date_str in enumerate(forecast["daily"]["time"]):
+            date_obj = datetime.fromisoformat(date_str).date()
+            delta = (date_obj - today).days
+            label = "Tomorrow" if delta == 1 else WEEKDAYS[date_obj.weekday()].capitalize()
+            temp_max_d = forecast["daily"]["temp_max"][i]
+            temp_min_d = forecast["daily"]["temp_min"][i]
+            weather = forecast["daily"]["weather_description"][i]
+            emoji = WEATHER_EMOJIS.get(weather, "🌡")
+            response += f"  {label}: {emoji} {temp_min_d}°C / {temp_max_d}°C, {weather}\n"
+
+        response += f"\n\n_This forecast uses the last location you sent me. Send a new location to update it._"
+        return response
+
     async def send_weather_alert(self, discussion_id: int):
         discussion = await self.discussion_get(discussion_id)
         if discussion:
@@ -95,30 +141,7 @@ class Evelyne(OlvidClient):
                 if forecast:
                     timezone = forecast.get("timezone", "UTC")
                     tz = ZoneInfo(timezone)
-                    response = f"🌤 Hello! Here is your weather forecast 🌤\n\n"
-                    response += "🕒 Today:\n"
-                    for i, time_str in enumerate(forecast["hourly"]["time"]):
-                        dt = datetime.fromisoformat(time_str)
-                        hour = dt.strftime("%H:%M")
-                        temp = forecast["hourly"]["temperature_2m"][i]
-                        weather = forecast["hourly"]["weather_description"][i]
-                        emoji = WEATHER_EMOJIS.get(weather, "🌡")
-                        response += f"{hour}: {emoji} {temp}°C, {weather}\n"
-                    response += "\n📅 Next days:\n"
-                    today = datetime.now(tz).date()
-                    for i, date_str in enumerate(forecast["daily"]["time"]):
-                        date_obj = datetime.fromisoformat(date_str).date()
-                        delta = (date_obj - today).days
-                        if delta == 1:
-                            label = "Tomorrow"
-                        else:
-                            label = WEEKDAYS[date_obj.weekday()].capitalize()
-                        temp_max = forecast["daily"]["temp_max"][i]
-                        temp_min = forecast["daily"]["temp_min"][i]
-                        weather = forecast["daily"]["weather_description"][i]
-                        emoji = WEATHER_EMOJIS.get(weather, "🌡")
-                        response += f"{label}: {emoji} {temp_min}°C/{temp_max}°C\n"
-                    response += f"\n\n_This weather forecast is fetched according to the last location you sent me. Send another location to refresh it._"
+                    response = self.format_forecast(forecast, tz)
                     await discussion.post_message(client=self, body=response)
                 else:
                     await discussion.post_message(client=self, body="Failed to fetch weather data.")
@@ -133,30 +156,7 @@ class Evelyne(OlvidClient):
             if forecast:
                 timezone = forecast.get("timezone", "UTC")
                 tz = ZoneInfo(timezone)
-                response = f"🌤 Hello! Here is your weather forecast 🌤\n\n"
-                response += "🕒 Today:\n"
-                for i, time_str in enumerate(forecast["hourly"]["time"]):
-                    dt = datetime.fromisoformat(time_str)
-                    hour = dt.strftime("%H:%M")
-                    temp = forecast["hourly"]["temperature_2m"][i]
-                    weather = forecast["hourly"]["weather_description"][i]
-                    emoji = WEATHER_EMOJIS.get(weather, "🌡")
-                    response += f"{hour}: {emoji} {temp}°C, {weather}\n"
-                response += "\n📅 Next days:\n"
-                today = datetime.now(tz).date()
-                for i, date_str in enumerate(forecast["daily"]["time"]):
-                    date_obj = datetime.fromisoformat(date_str).date()
-                    delta = (date_obj - today).days
-                    if delta == 1:
-                        label = "Tomorrow"
-                    else:
-                        label = WEEKDAYS[date_obj.weekday()].capitalize()
-                    temp_max = forecast["daily"]["temp_max"][i]
-                    temp_min = forecast["daily"]["temp_min"][i]
-                    weather = forecast["daily"]["weather_description"][i]
-                    emoji = WEATHER_EMOJIS.get(weather, "🌡")
-                    response += f"{label}: {emoji} {temp_min}°C/{temp_max}°C\n"
-                response += f"\n\n_This weather forecast is fetched according to the last location you sent me. Send another location to refresh it._"
+                response = self.format_forecast(forecast, tz)
                 await message.reply(client=self, body=response)
             else:
                 await message.reply(client=self, body="Failed to fetch weather data.")

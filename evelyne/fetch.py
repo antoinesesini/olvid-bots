@@ -147,7 +147,7 @@ def get_weather_forecast(latitude, longitude):
         for i, time_str in enumerate(data["hourly"]["time"]):
             dt = datetime.fromisoformat(time_str)
             dt = dt.replace(tzinfo=tz)
-            if dt.date() == today and dt > now:
+            if dt.date() == today:
                 code = str(data["hourly"]["weathercode"][i])
                 is_day = 6 <= dt.hour < 18
                 period = "day" if is_day else "night"
@@ -155,6 +155,12 @@ def get_weather_forecast(latitude, longitude):
                 hourly_filtered["time"].append(time_str)
                 hourly_filtered["temperature_2m"].append(data["hourly"]["temperature_2m"][i])
                 hourly_filtered["weather_description"].append(description)
+        today_index = data["daily"]["time"].index(str(today)) if str(today) in data["daily"]["time"] else None
+        today_temp_min = data["daily"]["temperature_2m_min"][today_index] if today_index is not None else None
+        today_temp_max = data["daily"]["temperature_2m_max"][today_index] if today_index is not None else None
+        today_weather_code = str(data["daily"]["weathercode"][today_index]) if today_index is not None else None
+        today_weather_desc = WEATHER_CODES.get(today_weather_code, {}).get("day", {}).get("description",
+                                                                                          "Unknown") if today_weather_code else "Unknown"
         for i, date_str in enumerate(data["daily"]["time"]):
             dt = datetime.fromisoformat(date_str).date()
             if dt > today:
@@ -167,6 +173,11 @@ def get_weather_forecast(latitude, longitude):
                 daily_filtered["weather_description"].append(description)
         return {
             "timezone": data["timezone"],
+            "today_summary": {
+                "temp_min": today_temp_min,
+                "temp_max": today_temp_max,
+                "weather_description": today_weather_desc
+            },
             "hourly": hourly_filtered,
             "daily": daily_filtered
         }
